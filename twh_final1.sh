@@ -16,7 +16,7 @@ hr() {
 }
 
 check_server_resources() {
-    hr 'Конфигурация сервера (диски, RAM, CPU)'
+    hr 'Конфигурация сервера'
     lsblk 2>/dev/null || printf 'lsblk: недоступен\n'
     printf '\n'
     if is_installed free; then
@@ -34,21 +34,21 @@ check_server_resources() {
 }
 
 check_sshd_config() {
-    hr 'Эффективная конфигурация sshd (sshd -T)'
+    hr 'Конфигурация SSH (sshd -T)'
     if ! is_installed sshd; then
         printf 'sshd не найден в PATH.\n'
         hr
         return
     fi
-    if [ "$(id -u)" -ne 0 ]; then
-        printf '\033[33mНе root: sshd -T может выдать ошибку или неполный список.\033[0m\n'
-        printf 'Для полного режима запустите скрипт с sudo.\n\n'
-    fi
-    if ! out=$(sshd -T 2>/dev/null); then
-        printf '\033[31msshd -T завершился с ошибкой (часто нужен root).\033[0m\n'
-        hr
-        return
-    fi
+#    if [ "$(id -u)" -ne 0 ]; then
+#        printf '\033[33mНе root: sshd -T может выдать ошибку или неполный список.\033[0m\n'
+#        printf 'Для полного режима запустите скрипт с sudo.\n\n'
+#    fi
+ #   if ! out=$(sshd -T 2>/dev/null); then
+ #       printf '\033[31msshd -T завершился с ошибкой (часто нужен root).\033[0m\n'
+ #       hr
+ #       return
+ #   fi
     printf '%s\n' "$out" | grep -E \
         'passwordauthentication|kbdinteractiveauthentication|challengeresponseauthentication|^port|permitrootlogin|pubkeyauthentication' \
         || printf 'Нет строк, совпадающих с фильтром.\n'
@@ -180,8 +180,8 @@ printf '
    12. Kernels
    13. vmstat / iostat (useful?)
    14. atop
-   15. Server configuration (lsblk, free, CPU)
-   16. SSHD configuration (sshd -T)
+   15. Server configuration
+   16. SSH configuration
     0. Exit + roskomnadzor
 
 Select: '
@@ -347,7 +347,7 @@ case "$action" in
                 fi
             fi
         else
-            printf 'Apache (apache2 / httpd): не установлен\n'
+            printf 'Apache не установлен\n'
         fi
 
         hr
@@ -505,19 +505,19 @@ case "$action" in
         case "$os_name" in
         Ubuntu|Debian|Astra)
             if is_installed dpkg; then
-                printf '\033[1m= Установленные пакеты ядра (dpkg) =\033[0m\n\n'
+                printf '\033[1m= Установленные пакеты ядра =\033[0m\n\n'
                 dpkg -l 'linux-image-*' 2>/dev/null | awk '/^ii/{print $2, $3}'
             fi
             ;;
         CentOS|Alma*|Rocky*)
             if is_installed rpm; then
-                printf '\033[1m= Установленные ядра (rpm) =\033[0m\n\n'
+                printf '\033[1m= Установленные ядра =\033[0m\n\n'
                 rpm -q kernel 2>/dev/null
             fi
             ;;
         Arch)
             if is_installed pacman; then
-                printf '\033[1m= Установленные ядра (pacman) =\033[0m\n\n'
+                printf '\033[1m= Установленные ядра =\033[0m\n\n'
                 pacman -Q 2>/dev/null | grep '^linux'
             fi
             ;;
