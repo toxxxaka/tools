@@ -43,7 +43,7 @@ ram="$(free -m | awk 'NR==2 {printf "%s Mb of %s Mb\n", $3, $2}')"
 swap="$(awk 'NR==2 {printf "%s (%s), %s Mb of %s Mb\n", $1, $2, int($4/1024), int($3/1024)}' /proc/swaps)"
 
 clear
-printf 'timeweb-helper improved v2\n'
+printf 'timeweb-helper updated v1\n'
 
 case "$os_name" in
 Alma*)
@@ -128,7 +128,7 @@ printf '\033[1mMySQL:\033[0m %s\n' "${mysql_ver:-not installed}"
 apache_conf_search_dirs() {
     _base="$1"
     _dirs=""
-    for _sub in conf conf.d sites-available sites-enabled conf-enabled; do
+    for _sub in conf conf.d sites-available sites-enabled conf-enabled sites_enabled vhosts; do
         [ -d "$_base/$_sub" ] && _dirs="$_dirs $_base/$_sub"
     done
     printf '%s' "$_dirs"
@@ -154,7 +154,7 @@ apache_search_domain() {
 
     _conf_files=$(grep -RliF --include='*.conf' -- "$_domain" $_search_dirs 2>/dev/null)
     if [ -z "$_conf_files" ]; then
-        printf 'Не найдено логов в conf/, conf.d/, sites-*\n'
+        printf 'Не найдено в conf/, conf.d/, sites-* Логов нет.\n'
         return 1
     fi
 
@@ -176,7 +176,7 @@ check_server_resources() {
     if is_installed nproc; then
         nproc
     else
-        grep -c '^processor' /proc/cpuinfo 2>/dev/null || printf 'nproc не установлен\n'
+        grep -c '^processor' /proc/cpuinfo 2>/dev/null || printf 'nproc: не установлен\n'
     fi
     hr
 }
@@ -193,13 +193,13 @@ check_sshd_config() {
         printf 'Запустите скрипт с sudo.\n\n'
     fi
     if ! out=$(sshd -T 2>/dev/null); then
-        printf '\033[31msshd -T завершился с ошибкой (нужен root).\033[0m\n'
+        printf '\033[31msshd -T завершился с ошибкой. Возможно нужен root.\033[0m\n'
         hr
         return
     fi
     _sshd_pat='^(port|listenaddress|permitrootlogin|pubkeyauthentication|passwordauthentication|kbdinteractiveauthentication|maxauthtries|maxstartups|maxsessions|tcpkeepalive|authorizedkeysfile|gatewayports|permitemptypasswords)'
     printf '%s\n' "$out" | grep -E "$_sshd_pat" \
-        || printf '(нет совпадений)\n'
+        || printf 'Нет таких переменных.\n'
     hr
 }
 
@@ -328,7 +328,7 @@ case "$action" in
             ss -tulpn
         fi
 
-        hr "Web servers (ports 80 / 443)"
+        hr "Web servers (80 / 443)"
 
         if is_installed netstat; then
             netstat -tulpn 2>/dev/null | grep -E ':80[[:space:]]|:443[[:space:]]' \
@@ -346,22 +346,22 @@ case "$action" in
             [ -f /etc/caddy/Caddyfile ] && caddyfile=/etc/caddy/Caddyfile
             [ -f /usr/local/etc/Caddyfile ] && caddyfile="${caddyfile:-/usr/local/etc/Caddyfile}"
             if [ -n "$caddyfile" ]; then
-                printf '\n\033[1mОсновной Caddyfile: [0m %s\n' "$caddyfile"]
+                printf '\n\033[1mОсновной Caddyfile:\033[0m %s\n' "$caddyfile"
             else
                 printf '\n\033[33mСтандартный Caddyfile не найден (/etc/caddy или /usr/local/etc).\033[0m\n'
             fi
-            printf '\n\033[1mПорты, где виден процесс caddy (ss -tulpn):\033[0m\n\n'
+            printf '\n\033[1mПорт caddy:\033[0m\n\n'
             if is_installed ss; then
                 ss -tulpn 2>/dev/null | grep -i caddy \
-                    || printf '(caddy в ss не найден — возможно нет прав или сервис не запущен)\n'
+                    || printf '(caddy не найден. Возможно служба не запущена.)\n'
             else
                 netstat -tulpn 2>/dev/null | grep -i caddy \
-                    || printf '(caddy в netstat не найден)\n'
+                    || printf 'Сaddy не найден.\n'
             fi
             if is_installed systemctl; then
-                printf '\n\033[1mСостояние caddy.service (systemctl status, кратко):\033[0m\n'
+                printf '\n\033[1mСостояние caddy.service:\033[0m\n'
                 systemctl status caddy.service --no-pager -l 2>/dev/null | head -n 15 \
-                    || printf ' Службы не найдено\n'
+                    || printf ' Службы не найдено.\n'
             fi
         else
             printf 'Сaddy не установлен\n'
@@ -434,7 +434,7 @@ case "$action" in
         ;;
 
     10)
-        hr "Network interfaces (без docker/veth/bridge)"
+        hr "Network interfaces (with no docker networks)"
 
         printf '\033[1m= IPv4 =\033[0m\n\n'
         for iface in $(ip -o link show 2>/dev/null \
@@ -559,7 +559,6 @@ case "$action" in
                 ipv6=$(nslookup -type=AAAA "$host" 2>/dev/null \
                     | awk '/^Address:/{print $2}' | grep -v '#' | head -1)
             elif is_installed getent; then
-                # getent возвращает все адреса; разделяем IPv4/IPv6 по формату
                 ipv4=$(getent hosts "$host" 2>/dev/null | awk '$1 ~ /^[0-9.]+$/ {print $1; exit}')
                 ipv6=$(getent hosts "$host" 2>/dev/null | awk '$1 ~ /:/ {print $1; exit}')
             fi
@@ -728,7 +727,7 @@ case "$action" in
             if ! numatop; then
                 printf '\n\033[31mНе удалось запустить numatop.\033[0m\n'
                 if [ "$(id -u)" -ne 0 ]; then
-                    printf 'Запустите скрипт от root/sudo и повторите.\n'
+                    printf 'Запустите скрипт от root.\n'
                 fi
                 if [ -r /proc/sys/kernel/perf_event_paranoid ]; then
                     perf_paranoid=$(cat /proc/sys/kernel/perf_event_paranoid 2>/dev/null)
@@ -811,9 +810,9 @@ case "$action" in
 
                 printf '\n\033[1mКлючевые параметры:\033[0m\n\n'
                 printf '  LOGINTERVAL / INTERVAL — интервал снимка в секундах\n'
-                printf '    (в Ubuntu /etc/default/atop обычно LOGINTERVAL=600)\n'
+                printf '    Обычно LOGINTERVAL=600\n'
                 printf '  LOGPATH=...    — директория с логами\n'
-                printf '  OUTFILE=...    — имя файла лога (если есть в вашей сборке)\n\n'
+                printf '  OUTFILE=...    — имя файла лога\n\n'
 
                 if [ -n "$atop_conf" ] && [ -w "$atop_conf" ]; then
                     printf 'Задать новый интервал снимка в секундах. Пустой ввод — без изменений.\n'
@@ -839,15 +838,15 @@ case "$action" in
                                     if is_installed systemctl; then
                                         if systemctl restart atop.service 2>/dev/null \
                                             || systemctl restart atop 2>/dev/null; then
-                                            printf '\033[32matop перезапущен (systemctl restart).\033[0m\n'
+                                            printf '\033[32matop перезапущен.\033[0m\n'
                                         else
                                             printf '\033[33mНе удалось перезапустить atop через systemctl — сделайте вручную.\033[0m\n'
                                         fi
                                     else
-                                        printf '\033[33msystemctl не найден — перезапустите atop вручную.\033[0m\n'
+                                        printf '\033[33msystemctl не найден — перезапустите atop вручную. Возможно, используется service.\033[0m\n'
                                     fi
                                 else
-                                    printf '\033[31mВ %s нет строк INTERVAL= / LOGINTERVAL= — правка вручную.\033[0m\n' "$atop_conf"
+                                    printf '\033[31mВ %s нет строк INTERVAL / LOGINTERVAL — нужна правка вручную.\033[0m\n' "$atop_conf"
                                 fi
                             fi
                             ;;
@@ -855,9 +854,9 @@ case "$action" in
                     fi
                 elif [ -n "$atop_conf" ]; then
                     printf '\n\033[33mНет прав на запись в %s — задайте интервал от root.\033[0m\n' "$atop_conf"
-                    printf 'После правок: systemctl restart atop.service\n'
+                    printf 'После правок: systemctl restart atop\n'
                 else
-                    printf 'После ручного редактирования: systemctl restart atop.service\n'
+                    printf 'После ручного редактирования: systemctl restart atop\n'
                 fi
                 ;;
             '')
@@ -882,14 +881,14 @@ case "$action" in
         hr 'Docker / Podman'
         if is_installed docker; then
             printf '\033[1mdocker ps -a\033[0m\n\n'
-            docker ps -a 2>/dev/null || printf 'docker: ошибка (демон не запущен или нет прав)\n'
+            docker ps -a 2>/dev/null || printf 'Служба docker не запущена.\n'
         else
-            printf 'Docker не установлен или нет в PATH\n'
+            printf 'Docker не установлен, нет в PATH или нужен root.\n'
         fi
         printf '\n'
         if is_installed podman; then
             printf '\033[1mpodman ps -a\033[0m\n\n'
-            podman ps -a 2>/dev/null || printf 'podman: ошибка выполнения\n'
+            podman ps -a 2>/dev/null || printf 'Ошибка podman.\n'
         else
             printf 'Podman не установлен или нет в PATH\n'
         fi
