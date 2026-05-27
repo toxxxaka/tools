@@ -154,7 +154,7 @@ apache_search_domain() {
 
     _conf_files=$(grep -RliF --include='*.conf' -- "$_domain" $_search_dirs 2>/dev/null)
     if [ -z "$_conf_files" ]; then
-        printf 'Не найдено в conf/, conf.d/, sites-* (логи не просматриваются)\n'
+        printf 'Не найдено логов в conf/, conf.d/, sites-*\n'
         return 1
     fi
 
@@ -176,7 +176,7 @@ check_server_resources() {
     if is_installed nproc; then
         nproc
     else
-        grep -c '^processor' /proc/cpuinfo 2>/dev/null || printf 'nproc: не установлен\n'
+        grep -c '^processor' /proc/cpuinfo 2>/dev/null || printf 'nproc не установлен\n'
     fi
     hr
 }
@@ -346,7 +346,7 @@ case "$action" in
             [ -f /etc/caddy/Caddyfile ] && caddyfile=/etc/caddy/Caddyfile
             [ -f /usr/local/etc/Caddyfile ] && caddyfile="${caddyfile:-/usr/local/etc/Caddyfile}"
             if [ -n "$caddyfile" ]; then
-                printf '\n\033[1mОсновной Caddyfile:\033[0m %s\n' "$caddyfile"
+                printf '\n\033[1mОсновной Caddyfile: [0m %s\n' "$caddyfile"]
             else
                 printf '\n\033[33mСтандартный Caddyfile не найден (/etc/caddy или /usr/local/etc).\033[0m\n'
             fi
