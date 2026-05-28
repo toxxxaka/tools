@@ -143,7 +143,7 @@ apache_search_domain() {
     if [ -n "$_bin" ]; then
         printf '\033[1mВиртуальные хосты (%s -S):\033[0m\n\n' "$_bin"
         "$_bin" -S 2>/dev/null | grep -Fi -- "$_domain" \
-            || printf '  Совпадений нет.\n'
+            || printf 'Совпадений нет.\n'
         printf '\n'
     fi
 
@@ -332,7 +332,7 @@ case "$action" in
 
         if is_installed netstat; then
             netstat -tulpn 2>/dev/null | grep -E ':80[[:space:]]|:443[[:space:]]' \
-                || printf 'Нет ПО и служб на 80/443 портах\n'
+                || printf 'Нет ПО (служб) на 80/443 портах\n'
         else
             ss -tulpn | grep -E ':80[[:space:]]|:443[[:space:]]' \
                 || printf 'Нет ПО и служб на 80/443 портах\n'
@@ -361,7 +361,7 @@ case "$action" in
             if is_installed systemctl; then
                 printf '\n\033[1mСостояние caddy.service:\033[0m\n'
                 systemctl status caddy.service --no-pager -l 2>/dev/null | head -n 15 \
-                    || printf ' Службы не найдено.\n'
+                    || printf 'Службы не найдено.\n'
             fi
         else
             printf 'Сaddy не установлен\n'
@@ -381,7 +381,7 @@ case "$action" in
             read -r ng_domain
             if [ -n "$ng_domain" ]; then
                 hr "Nginx — поиск: $ng_domain"
-                grep -Rn "$ng_domain" /etc/nginx 2>/dev/null \
+                grep -Rni --include='*.conf' "$ng_domain" /etc/nginx 2>/dev/null \
                     || printf 'Не найдено\n'
             fi
         else
